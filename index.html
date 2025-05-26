@@ -3,196 +3,557 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chat P2P Funcional</title>
+    <title>Chat P2P by Edixon V.V.T & Deepseek 2.5</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
-            max-width: 600px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
             margin: 0 auto;
             padding: 20px;
-            background: #f5f5f5;
+            background-color: #f5f5f5;
+            color: #333;
         }
-        #login, #chat-admin, #chat-invitado, #esperando {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-        }
-        #login { display: block; }
-        #chat-admin, #chat-invitado, #esperando { display: none; }
-        #messages {
-            height: 300px;
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 90vh;
             border: 1px solid #ddd;
-            overflow-y: auto;
-            padding: 10px;
-            margin: 10px 0;
+            border-radius: 10px;
+            background-color: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
         }
-        .btn {
-            padding: 8px 15px;
-            background: #4CAF50;
+        .header {
+            background-color: #4285f4;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .chat-area {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            background-color: #f9f9f9;
+        }
+        .message {
+            margin-bottom: 15px;
+            padding: 10px 15px;
+            border-radius: 18px;
+            max-width: 70%;
+            word-wrap: break-word;
+        }
+        .received {
+            background-color: #e5e5ea;
+            color: black;
+            align-self: flex-start;
+            border-bottom-left-radius: 5px;
+        }
+        .sent {
+            background-color: #4285f4;
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 5px;
+            margin-left: auto;
+        }
+        .input-area {
+            display: flex;
+            padding: 10px;
+            border-top: 1px solid #ddd;
+            background-color: white;
+        }
+        #messageInput {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            outline: none;
+        }
+        #sendButton {
+            margin-left: 10px;
+            padding: 10px 20px;
+            background-color: #4285f4;
             color: white;
             border: none;
-            border-radius: 4px;
-            margin: 5px;
+            border-radius: 20px;
             cursor: pointer;
         }
-        .btn-share {
-            background: #25D366; /* WhatsApp verde */
+        #sendButton:hover {
+            background-color: #3367d6;
         }
-        .btn-fb {
-            background: #3b5998; /* Facebook azul */
+        .setup-screen {
+            padding: 20px;
+            text-align: center;
+        }
+        .setup-screen input, .setup-screen button {
+            padding: 10px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .setup-screen button {
+            background-color: #4285f4;
+            color: white;
+            cursor: pointer;
+        }
+        .video-container {
+            position: relative;
+            padding-bottom: 56.25%; /* 16:9 */
+            height: 0;
+            overflow: hidden;
+            margin: 10px 0;
+            border-radius: 8px;
+        }
+        .video-container iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        .status {
+            font-size: 12px;
+            color: #666;
+            text-align: center;
+            padding: 5px;
+        }
+        .share-buttons {
+            display: flex;
+            justify-content: center;
+            margin-top: 10px;
+        }
+        .share-button {
+            padding: 8px 15px;
+            margin: 0 5px;
+            border-radius: 5px;
+            color: white;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        .whatsapp {
+            background-color: #25D366;
+        }
+        .facebook {
+            background-color: #3b5998;
+        }
+        .admin-info {
+            font-size: 12px;
+            background-color: #f8f9fa;
+            padding: 5px;
+            border-radius: 3px;
+            margin-top: 5px;
+        }
+        .timestamp {
+            font-size: 11px;
+            color: #999;
+            margin-top: 3px;
+            text-align: right;
         }
     </style>
 </head>
 <body>
-    <!-- Pantalla inicial -->
-    <div id="login">
-        <h1>Chat P2P Directo</h1>
-        <button class="btn" onclick="iniciarComoAdmin()">Crear Chat</button>
-        <div style="text-align: center; margin: 15px 0;">ó</div>
-        <input type="text" id="codigo-entrada" placeholder="Código del chat">
-        <button class="btn" onclick="unirseComoInvitado()">Unirse</button>
-    </div>
-
-    <!-- Chat del Admin -->
-    <div id="chat-admin">
-        <h2>Admin - Sala: <span id="codigo-admin"></span></h2>
-        <div id="admin-messages"></div>
-        <input type="text" id="admin-input" placeholder="Escribe tu mensaje">
-        <button class="btn" onclick="enviarMensajeAdmin()">Enviar</button>
-    </div>
-
-    <!-- Chat del Invitado -->
-    <div id="chat-invitado">
-        <h2>Invitado - Sala: <span id="codigo-invitado"></span></h2>
-        <div id="invitado-messages"></div>
-        <input type="text" id="invitado-input" placeholder="Escribe tu mensaje">
-        <button class="btn" onclick="enviarMensajeInvitado()">Enviar</button>
-    </div>
-
-    <!-- Esperando conexión -->
-    <div id="esperando">
-        <h2>Conectando a la sala...</h2>
-        <p id="info-conexion"></p>
+    <div class="container">
+        <div class="header">
+            <span id="headerTitle">Chat P2P</span>
+            <span id="connectionStatus">Desconectado</span>
+        </div>
+        
+        <div id="setupScreen" class="setup-screen">
+            <h2>Configuración del Chat P2P</h2>
+            <div id="adminSection">
+                <p>¿Quieres crear una nueva sala como administrador?</p>
+                <button id="createRoomBtn">Crear Sala</button>
+                <div id="adminCodeDisplay" style="display: none; margin-top: 20px;">
+                    <p>Tu código de sala es: <strong id="roomCode"></strong></p>
+                    <p>Comparte este código con quien quieras invitar</p>
+                    <div class="share-buttons">
+                        <a id="whatsappShare" class="share-button whatsapp" target="_blank">WhatsApp</a>
+                        <a id="facebookShare" class="share-button facebook" target="_blank">Facebook</a>
+                    </div>
+                </div>
+            </div>
+            <div id="guestSection" style="margin-top: 30px;">
+                <p>¿Tienes un código de invitación?</p>
+                <input type="text" id="roomCodeInput" placeholder="Ingresa el código de 5 dígitos" maxlength="5">
+                <button id="joinRoomBtn">Unirse a Sala</button>
+            </div>
+        </div>
+        
+        <div id="chatScreen" style="display: none;">
+            <div class="chat-area" id="chatArea"></div>
+            <div class="status" id="networkStatus">Conectando...</div>
+            <div class="input-area">
+                <input type="text" id="messageInput" placeholder="Escribe un mensaje...">
+                <button id="sendButton">Enviar</button>
+            </div>
+        </div>
     </div>
 
     <script>
-        // Configuración WebRTC
-        const config = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
-        let peerConnection, dataChannel, codigoSala, esAdmin = false;
-
-        // ======================
-        // 1. Lógica del Admin
-        // ======================
-        async function iniciarComoAdmin() {
-            esAdmin = true;
-            codigoSala = Math.random().toString(36).substring(2, 6).toUpperCase();
-            
-            // Configurar conexión WebRTC
-            peerConnection = new RTCPeerConnection(config);
-            dataChannel = peerConnection.createDataChannel("chat");
-            
-            // Escuchar mensajes del invitado
-            dataChannel.onmessage = (event) => {
-                agregarMensaje("Invitado", event.data, 'admin');
-            };
-
-            // Crear oferta de conexión
-            const oferta = await peerConnection.createOffer();
-            await peerConnection.setLocalDescription(oferta);
-            
-            // Mostrar interfaz
-            document.getElementById('login').style.display = 'none';
-            document.getElementById('chat-admin').style.display = 'block';
-            document.getElementById('codigo-admin').textContent = codigoSala;
-            
-            // Guardar oferta para compartir
-            localStorage.setItem('ofertaAdmin', JSON.stringify(oferta));
-            alert(`Código para compartir: ${codigoSala}\n\nOferta WebRTC (cópiala):\n${JSON.stringify(oferta)}`);
-        }
-
-        function enviarMensajeAdmin() {
-            const mensaje = document.getElementById('admin-input').value;
-            if (mensaje && dataChannel) {
-                dataChannel.send(mensaje);
-                agregarMensaje("Tú (Admin)", mensaje, 'admin');
-                document.getElementById('admin-input').value = '';
-            }
-        }
-
-        // ======================
-        // 2. Lógica del Invitado
-        // ======================
-        async function unirseComoInvitado() {
-            codigoSala = document.getElementById('codigo-entrada').value.toUpperCase();
-            if (!codigoSala) return alert("Ingresa un código válido");
-            
-            // Mostrar pantalla de espera
-            document.getElementById('login').style.display = 'none';
-            document.getElementById('esperando').style.display = 'block';
-            document.getElementById('info-conexion').textContent = `Sala: ${codigoSala}`;
-            
-            // Pedir la oferta WebRTC del admin
-            const ofertaAdmin = prompt("Pega la oferta WebRTC que te envió el admin:");
-            if (!ofertaAdmin) return;
-            
-            try {
-                // Configurar conexión
-                peerConnection = new RTCPeerConnection(config);
-                
-                // Escuchar canal de datos
-                peerConnection.ondatachannel = (event) => {
-                    dataChannel = event.channel;
-                    dataChannel.onmessage = (event) => {
-                        agregarMensaje("Admin", event.data, 'invitado');
-                    };
-                };
-                
-                // Procesar oferta del admin
-                await peerConnection.setRemoteDescription(JSON.parse(ofertaAdmin));
-                const respuesta = await peerConnection.createAnswer();
-                await peerConnection.setLocalDescription(respuesta);
-                
-                // Mostrar chat
-                document.getElementById('esperando').style.display = 'none';
-                document.getElementById('chat-invitado').style.display = 'block';
-                document.getElementById('codigo-invitado').textContent = codigoSala;
-                
-                alert("Envía esta respuesta al admin:\n" + JSON.stringify(respuesta));
-            } catch (error) {
-                alert("Error de conexión: " + error.message);
-            }
-        }
-
-        function enviarMensajeInvitado() {
-            const mensaje = document.getElementById('invitado-input').value;
-            if (mensaje && dataChannel) {
-                dataChannel.send(mensaje);
-                agregarMensaje("Tú", mensaje, 'invitado');
-                document.getElementById('invitado-input').value = '';
-            }
-        }
-
-        // ======================
-        // 3. Funciones Comunes
-        // ======================
-        function agregarMensaje(remitente, texto, tipoChat) {
-            const contenedor = tipoChat === 'admin' ? 
-                document.getElementById('admin-messages') : 
-                document.getElementById('invitado-messages');
-                
-            contenedor.innerHTML += `<p><strong>${remitente}:</strong> ${texto}</p>`;
-            contenedor.scrollTop = contenedor.scrollHeight;
-        }
-
-        // Auto-reconexión si hay código en la URL
-        window.onload = () => {
-            const urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.has('room')) {
-                document.getElementById('codigo-entrada').value = urlParams.get('room');
-            }
+        // Configuración global
+        const config = {
+            iceServers: [
+                { urls: 'stun:stun.l.google.com:19302' },
+                { urls: 'stun:stun1.l.google.com:19302' },
+                { urls: 'stun:stun2.l.google.com:19302' },
+                { urls: 'stun:stun3.l.google.com:19302' },
+                { urls: 'stun:stun4.l.google.com:19302' }
+            ]
         };
+
+        // Variables de estado
+        let peerConnection;
+        let dataChannel;
+        let isAdmin = false;
+        let roomCode = '';
+        let messages = [];
+        let reconnectAttempts = 0;
+        const maxReconnectAttempts = 5;
+        const reconnectDelay = 3000; // 3 segundos
+
+        // Elementos del DOM
+        const setupScreen = document.getElementById('setupScreen');
+        const chatScreen = document.getElementById('chatScreen');
+        const chatArea = document.getElementById('chatArea');
+        const messageInput = document.getElementById('messageInput');
+        const sendButton = document.getElementById('sendButton');
+        const createRoomBtn = document.getElementById('createRoomBtn');
+        const joinRoomBtn = document.getElementById('joinRoomBtn');
+        const roomCodeInput = document.getElementById('roomCodeInput');
+        const adminCodeDisplay = document.getElementById('adminCodeDisplay');
+        const displayedRoomCode = document.getElementById('roomCode');
+        const whatsappShare = document.getElementById('whatsappShare');
+        const facebookShare = document.getElementById('facebookShare');
+        const connectionStatus = document.getElementById('connectionStatus');
+        const networkStatus = document.getElementById('networkStatus');
+        const headerTitle = document.getElementById('headerTitle');
+
+        // Cargar mensajes almacenados localmente
+        function loadMessages() {
+            const savedMessages = localStorage.getItem('p2pChatMessages');
+            if (savedMessages) {
+                messages = JSON.parse(savedMessages);
+                renderMessages();
+            }
+        }
+
+        // Guardar mensajes localmente
+        function saveMessages() {
+            localStorage.setItem('p2pChatMessages', JSON.stringify(messages));
+        }
+
+        // Mostrar mensajes en el chat
+        function renderMessages() {
+            chatArea.innerHTML = '';
+            messages.forEach(msg => {
+                const messageDiv = document.createElement('div');
+                messageDiv.classList.add('message');
+                messageDiv.classList.add(msg.sender === 'me' ? 'sent' : 'received');
+                
+                // Procesar contenido del mensaje para detectar enlaces de video
+                let content = msg.content;
+                if (msg.type === 'video') {
+                    const videoId = extractVideoId(msg.content);
+                    if (videoId) {
+                        content = `
+                            <div class="video-container">
+                                <iframe src="https://www.youtube.com/embed/${videoId}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                            </div>
+                        `;
+                    }
+                } else if (msg.type === 'facebook-video') {
+                    const videoUrl = msg.content;
+                    content = `
+                        <div class="video-container">
+                            <iframe src="https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(videoUrl)}&show_text=0&width=560" frameborder="0" allowfullscreen></iframe>
+                        </div>
+                    `;
+                }
+                
+                messageDiv.innerHTML = `
+                    ${content}
+                    <div class="timestamp">${formatTime(msg.timestamp)}</div>
+                `;
+                chatArea.appendChild(messageDiv);
+            });
+            chatArea.scrollTop = chatArea.scrollHeight;
+        }
+
+        // Extraer ID de video de YouTube
+        function extractVideoId(url) {
+            const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+            const match = url.match(regExp);
+            return (match && match[2].length === 11) ? match[2] : null;
+        }
+
+        // Formatear hora
+        function formatTime(timestamp) {
+            const date = new Date(timestamp);
+            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        // Generar código de sala aleatorio
+        function generateRoomCode() {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            let result = '';
+            for (let i = 0; i < 5; i++) {
+                result += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return result;
+        }
+
+        // Crear conexión peer
+        function createPeerConnection() {
+            peerConnection = new RTCPeerConnection(config);
+            
+            peerConnection.onicecandidate = event => {
+                if (event.candidate) {
+                    if (dataChannel && dataChannel.readyState === 'open') {
+                        dataChannel.send(JSON.stringify({
+                            type: 'ice-candidate',
+                            candidate: event.candidate
+                        }));
+                    }
+                }
+            };
+            
+            peerConnection.onconnectionstatechange = () => {
+                updateConnectionStatus();
+                if (peerConnection.connectionState === 'disconnected' || 
+                    peerConnection.connectionState === 'failed') {
+                    attemptReconnect();
+                }
+            };
+            
+            return peerConnection;
+        }
+
+        // Actualizar estado de conexión en la UI
+        function updateConnectionStatus() {
+            if (!peerConnection) {
+                connectionStatus.textContent = 'Desconectado';
+                networkStatus.textContent = 'Desconectado';
+                return;
+            }
+            
+            const status = peerConnection.connectionState;
+            connectionStatus.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+            networkStatus.textContent = status === 'connected' ? 'Conectado' : `Estado: ${status}`;
+            
+            if (status === 'connected') {
+                reconnectAttempts = 0;
+            }
+        }
+
+        // Intentar reconectar
+        function attemptReconnect() {
+            if (reconnectAttempts >= maxReconnectAttempts) {
+                networkStatus.textContent = 'No se pudo reconectar. Por favor refresca la página.';
+                return;
+            }
+            
+            reconnectAttempts++;
+            networkStatus.textContent = `Intentando reconectar (${reconnectAttempts}/${maxReconnectAttempts})...`;
+            
+            setTimeout(() => {
+                if (isAdmin) {
+                    setupAsAdmin(roomCode);
+                } else {
+                    joinAsGuest(roomCode);
+                }
+            }, reconnectDelay);
+        }
+
+        // Configurar como administrador
+        function setupAsAdmin(code) {
+            isAdmin = true;
+            roomCode = code;
+            
+            // Mostrar UI de admin
+            setupScreen.style.display = 'none';
+            chatScreen.style.display = 'flex';
+            headerTitle.textContent = `Sala: ${roomCode} (Admin)`;
+            
+            // Crear conexión
+            peerConnection = createPeerConnection();
+            
+            // Crear canal de datos
+            dataChannel = peerConnection.createDataChannel('chatChannel');
+            setupDataChannel(dataChannel);
+            
+            // Crear oferta
+            peerConnection.createOffer()
+                .then(offer => peerConnection.setLocalDescription(offer))
+                .then(() => {
+                    const offer = peerConnection.localDescription;
+                    // En una implementación real, aquí enviarías la oferta al invitado
+                    // En este caso P2P puro, necesitamos un método para compartir la oferta
+                    console.log('Oferta creada:', offer);
+                })
+                .catch(error => {
+                    console.error('Error al crear oferta:', error);
+                    networkStatus.textContent = 'Error al crear sala. Intenta de nuevo.';
+                });
+        }
+
+        // Unirse como invitado
+        function joinAsGuest(code) {
+            isAdmin = false;
+            roomCode = code;
+            
+            // Mostrar UI de invitado
+            setupScreen.style.display = 'none';
+            chatScreen.style.display = 'flex';
+            headerTitle.textContent = `Sala: ${roomCode}`;
+            
+            // Crear conexión
+            peerConnection = createPeerConnection();
+            
+            // Escuchar canal de datos
+            peerConnection.ondatachannel = event => {
+                dataChannel = event.channel;
+                setupDataChannel(dataChannel);
+            };
+            
+            // Aquí normalmente recibirías una oferta del admin y la procesarías
+            // En este ejemplo simplificado, simulamos que ya tenemos la oferta
+            // En una implementación real necesitarías un método para recibir la oferta
+        }
+
+        // Configurar canal de datos
+        function setupDataChannel(channel) {
+            channel.onopen = () => {
+                updateConnectionStatus();
+                networkStatus.textContent = 'Conectado';
+            };
+            
+            channel.onclose = () => {
+                updateConnectionStatus();
+                networkStatus.textContent = 'Conexión cerrada';
+            };
+            
+            channel.onmessage = event => {
+                try {
+                    const message = JSON.parse(event.data);
+                    
+                    if (message.type === 'ice-candidate') {
+                        peerConnection.addIceCandidate(new RTCIceCandidate(message.candidate))
+                            .catch(error => console.error('Error al añadir ICE candidate:', error));
+                    } else if (message.type === 'offer') {
+                        if (!isAdmin) {
+                            peerConnection.setRemoteDescription(new RTCSessionDescription(message))
+                                .then(() => peerConnection.createAnswer())
+                                .then(answer => peerConnection.setLocalDescription(answer))
+                                .then(() => {
+                                    if (dataChannel.readyState === 'open') {
+                                        dataChannel.send(JSON.stringify(peerConnection.localDescription));
+                                    }
+                                })
+                                .catch(error => console.error('Error al procesar oferta:', error));
+                        }
+                    } else if (message.type === 'answer') {
+                        if (isAdmin) {
+                            peerConnection.setRemoteDescription(new RTCSessionDescription(message))
+                                .catch(error => console.error('Error al procesar respuesta:', error));
+                        }
+                    } else if (message.type === 'chat-message') {
+                        // Mensaje recibido
+                        const newMessage = {
+                            content: message.content,
+                            sender: 'them',
+                            timestamp: Date.now(),
+                            type: message.mediaType || 'text'
+                        };
+                        
+                        messages.push(newMessage);
+                        saveMessages();
+                        renderMessages();
+                    }
+                } catch (error) {
+                    console.error('Error al procesar mensaje:', error);
+                }
+            };
+        }
+
+        // Enviar mensaje
+        function sendMessage() {
+            const content = messageInput.value.trim();
+            if (!content || !dataChannel || dataChannel.readyState !== 'open') return;
+            
+            // Detectar si es un enlace de video
+            let mediaType = 'text';
+            if (content.includes('youtube.com/watch') || content.includes('youtu.be/')) {
+                mediaType = 'video';
+            } else if (content.includes('facebook.com/') && (content.includes('/videos/') || content.includes('/watch/'))) {
+                mediaType = 'facebook-video';
+            }
+            
+            const message = {
+                type: 'chat-message',
+                content: content,
+                mediaType: mediaType
+            };
+            
+            dataChannel.send(JSON.stringify(message));
+            
+            // Añadir a mensajes locales
+            messages.push({
+                content: content,
+                sender: 'me',
+                timestamp: Date.now(),
+                type: mediaType
+            });
+            
+            saveMessages();
+            renderMessages();
+            
+            // Limpiar input
+            messageInput.value = '';
+        }
+
+        // Event listeners
+        createRoomBtn.addEventListener('click', () => {
+            const code = generateRoomCode();
+            displayedRoomCode.textContent = code;
+            adminCodeDisplay.style.display = 'block';
+            
+            // Configurar botones de compartir
+            const shareText = `Únete a mi chat P2P usando el código: ${code}\n\nAccede aquí: ${window.location.href}`;
+            whatsappShare.href = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
+            facebookShare.href = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}&quote=${encodeURIComponent(shareText)}`;
+        });
+
+        joinRoomBtn.addEventListener('click', () => {
+            const code = roomCodeInput.value.trim().toUpperCase();
+            if (code.length === 5) {
+                joinAsGuest(code);
+            } else {
+                alert('Por favor ingresa un código válido de 5 caracteres');
+            }
+        });
+
+        sendButton.addEventListener('click', sendMessage);
+        
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        // Inicializar
+        loadMessages();
+
+        // Para propósitos de demostración: simular conexión entre admin e invitado
+        // En una implementación real necesitarías un servidor de señales o un método para intercambiar ofertas/respuestas
+        document.getElementById('adminCodeDisplay').addEventListener('click', () => {
+            // Simular que el invitado ingresa el código
+            roomCodeInput.value = displayedRoomCode.textContent;
+        });
     </script>
 </body>
 </html>
