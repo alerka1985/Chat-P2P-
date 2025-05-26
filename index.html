@@ -6,11 +6,11 @@
     <title>Chat P2P Anónimo</title>
     <style>
         body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background: #f5f5f5; }
-        #chat-ui { display: none; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        #chat-ui, #guest-ui { display: none; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
         #messages { height: 400px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; }
-        #file-input { display: none; }
-        .message { margin: 5px 0; padding: 8px; border-radius: 5px; background: #e3f2fd; }
-        .admin-message { background: #ffecb3; }
+        #share-buttons { margin: 10px 0; }
+        .share-btn { background: #25D366; color: white; border: none; padding: 8px 12px; margin-right: 5px; border-radius: 5px; cursor: pointer; }
+        .share-btn.fb { background: #3b5998; }
     </style>
 </head>
 <body>
@@ -24,19 +24,26 @@
         </div>
     </div>
 
-    <!-- Interfaz del chat -->
+    <!-- Interfaz del admin -->
     <div id="chat-ui">
         <h2>Sala: <span id="current-room"></span></h2>
-        <div id="user-list"></div>
+        <div id="share-buttons">
+            <button class="share-btn" onclick="shareOnWhatsApp()">WhatsApp</button>
+            <button class="share-btn fb" onclick="shareOnFacebook()">Facebook</button>
+        </div>
         <div id="messages"></div>
         <input type="text" id="message-input" placeholder="Escribe tu mensaje">
         <button onclick="sendMessage()">Enviar</button>
-        <button onclick="shareFile()">Enviar Archivo</button>
-        <input type="file" id="file-input">
+    </div>
+
+    <!-- Interfaz del invitado -->
+    <div id="guest-ui">
+        <h2>Invitado a sala: <span id="guest-room-code"></span></h2>
+        <button onclick="startGuestChat()">Iniciar Chat</button>
     </div>
 
     <script>
-        // Configuración WebRTC (STUN público de Google)
+        // Configuración WebRTC
         const config = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
         let peerConnection, dataChannel, roomCode, isAdmin = false;
 
@@ -57,26 +64,28 @@
 
             const offer = await peerConnection.createOffer();
             await peerConnection.setLocalDescription(offer);
-            
-            // Guardar oferta para compartirla
-            const offerString = JSON.stringify(offer);
-            prompt("Comparte este código con los invitados:", `${window.location.href}?code=${roomCode}&offer=${encodeURIComponent(offerString)}`);
         }
 
-        // 2. Invitado: Unirse a sala
-        async function joinRoom() {
-            roomCode = document.getElementById("room-code").value;
+        // 2. Compartir en redes
+        function shareOnWhatsApp() {
+            const offer = JSON.stringify(peerConnection.localDescription);
+            const url = `${window.location.href.split('?')[0]}?code=${roomCode}&offer=${encodeURIComponent(offer)}`;
+            const text = `Únete a mi chat P2P! Código: ${roomCode}\n${url}`;
+            window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+        }
+
+        function shareOnFacebook() {
+            const offer = JSON.stringify(peerConnection.localDescription);
+            const url = `${window.location.href.split('?')[0]}?code=${roomCode}&offer=${encodeURIComponent(offer)}`;
+            window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank');
+        }
+
+        // 3. Invitado: Iniciar chat
+        async function startGuestChat() {
             const urlParams = new URLSearchParams(window.location.search);
             const offer = urlParams.get('offer');
             
-            if (!offer) {
-                alert("¡Código inválido! Usa un link compartido por el admin.");
-                return;
-            }
-
-            document.getElementById("current-room").textContent = roomCode;
-            document.getElementById("login").style.display = "none";
-            document.getElementById("chat-ui").style.display = "block";
+            if (!offer) return;
             
             peerConnection = new RTCPeerConnection(config);
             
@@ -91,11 +100,29 @@
             const answer = await peerConnection.createAnswer();
             await peerConnection.setLocalDescription(answer);
             
-            // Enviar respuesta al admin (simplificado para demo)
-            alert("Envía esta respuesta al admin: " + JSON.stringify(answer));
+            document.getElementById("guest-ui").style.display = "none";
+            document.getElementById("chat-ui").style.display = "block";
+            document.getElementById("current-room").textContent = roomCode;
         }
 
-        // 3. Enviar mensajes
+        // 4. Auto-detectar invitado
+        window.onload = () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.has('offer')) {
+                roomCode = urlParams.get('code');
+                document.getElementById("guest-room-code").textContent = roomCode;
+                document.getElementById("login").style.display = "none";
+                document.getElementById("guest-ui").style.display = "block";
+            }
+        };
+
+        // Helpers
+        function addMessage(sender, text) {
+            const messagesDiv = document.getElementById("messages");
+            messagesDiv.innerHTML += `<div><strong>${sender}:</strong> ${text}</div>`;
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
         function sendMessage() {
             const message = document.getElementById("message-input").value;
             if (message && dataChannel) {
@@ -104,43 +131,6 @@
                 document.getElementById("message-input").value = "";
             }
         }
-
-        // 4. Enviar archivos (hasta 50MB)
-        function shareFile() {
-            document.getElementById("file-input").click();
-        }
-
-        document.getElementById("file-input").onchange = (e) => {
-            const file = e.target.files[0];
-            if (file.size > 50_000_000) {
-                alert("¡Archivo demasiado grande! Máximo 50MB.");
-                return;
-            }
-            
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                dataChannel.send(event.target.result);
-                addMessage(isAdmin ? "Tú (Admin)" : "Tú", `📁 ${file.name} (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
-            };
-            reader.readAsDataURL(file);
-        };
-
-        // Helpers
-        function addMessage(sender, text) {
-            const messagesDiv = document.getElementById("messages");
-            const messageClass = sender.includes("Admin") ? "admin-message" : "message";
-            messagesDiv.innerHTML += `<div class="${messageClass}"><strong>${sender}:</strong> ${text}</div>`;
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
-        }
-
-        // Auto-unirse si hay código en la URL
-        window.onload = () => {
-            const urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.has('offer')) {
-                document.getElementById("room-code").value = urlParams.get('code');
-                joinRoom();
-            }
-        };
     </script>
 </body>
-</html>
+    </html>
