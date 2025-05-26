@@ -5,12 +5,51 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chat P2P Anónimo</title>
     <style>
-        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background: #f5f5f5; }
-        #chat-ui, #guest-ui { display: none; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        #messages { height: 400px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; margin-bottom: 10px; }
-        #share-buttons { margin: 10px 0; }
-        .share-btn { background: #25D366; color: white; border: none; padding: 8px 12px; margin-right: 5px; border-radius: 5px; cursor: pointer; }
-        .share-btn.fb { background: #3b5998; }
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        #login, #chat-ui, #guest-ui {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        #chat-ui, #guest-ui {
+            display: none;
+        }
+        #messages {
+            height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-bottom: 10px;
+        }
+        .share-btn {
+            background: #25D366;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            margin-right: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .share-btn.fb {
+            background: #3b5998;
+        }
+        .message {
+            margin: 5px 0;
+            padding: 8px;
+            border-radius: 5px;
+            background: #e3f2fd;
+        }
+        .admin-message {
+            background: #ffecb3;
+        }
     </style>
 </head>
 <body>
@@ -28,8 +67,8 @@
     <div id="chat-ui">
         <h2>Sala: <span id="current-room"></span></h2>
         <div id="share-buttons">
-            <button class="share-btn" onclick="shareOnWhatsApp()">WhatsApp</button>
-            <button class="share-btn fb" onclick="shareOnFacebook()">Facebook</button>
+            <button class="share-btn" onclick="shareOnWhatsApp()">Compartir por WhatsApp</button>
+            <button class="share-btn fb" onclick="shareOnFacebook()">Compartir en Facebook</button>
         </div>
         <div id="messages"></div>
         <input type="text" id="message-input" placeholder="Escribe tu mensaje">
@@ -38,8 +77,9 @@
 
     <!-- Interfaz del invitado -->
     <div id="guest-ui">
-        <h2>Invitado a sala: <span id="guest-room-code"></span></h2>
-        <button onclick="startGuestChat()">Iniciar Chat</button>
+        <h2>Te han invitado a un chat</h2>
+        <p>Código de sala: <strong id="guest-room-code"></strong></p>
+        <button onclick="startChat()">Unirse al Chat</button>
     </div>
 
     <script>
@@ -50,11 +90,12 @@
         // 1. Admin: Crear sala
         async function createRoom() {
             isAdmin = true;
-            roomCode = Math.random().toString(36).substring(2, 7).toUpperCase();
+            roomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
             document.getElementById("current-room").textContent = roomCode;
             document.getElementById("login").style.display = "none";
             document.getElementById("chat-ui").style.display = "block";
             
+            // Configurar conexión WebRTC
             peerConnection = new RTCPeerConnection(config);
             dataChannel = peerConnection.createDataChannel("chat");
             
@@ -62,31 +103,32 @@
                 addMessage("Invitado", event.data);
             };
 
-            const offer = await peerConnection.createOffer();
-            await peerConnection.setLocalDescription(offer);
+            dataChannel.onopen = () => {
+                addSystemMessage("Conexión establecida. Puedes enviar mensajes.");
+            };
         }
 
-        // 2. Compartir en redes
+        // 2. Compartir enlace corto por WhatsApp/Facebook
         function shareOnWhatsApp() {
-            const offer = JSON.stringify(peerConnection.localDescription);
-            const url = `${window.location.href.split('?')[0]}?code=${roomCode}&offer=${encodeURIComponent(offer)}`;
-            const text = `Únete a mi chat P2P! Código: ${roomCode}\n${url}`;
+            const url = `${window.location.href.split('?')[0]}?code=${roomCode}`;
+            const text = `¡Únete a mi chat P2P! Código: ${roomCode}\n${url}`;
             window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
         }
 
         function shareOnFacebook() {
-            const offer = JSON.stringify(peerConnection.localDescription);
-            const url = `${window.location.href.split('?')[0]}?code=${roomCode}&offer=${encodeURIComponent(offer)}`;
+            const url = `${window.location.href.split('?')[0]}?code=${roomCode}`;
             window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank');
         }
 
-        // 3. Invitado: Iniciar chat
-        async function startGuestChat() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const offer = urlParams.get('offer');
+        // 3. Invitado: Unirse al chat
+        async function startChat() {
+            document.getElementById("guest-ui").style.display = "none";
+            document.getElementById("chat-ui").style.display = "block";
             
+            // El invitado debe pegar manualmente la oferta del admin
+            const offer = prompt("Pega la oferta WebRTC que te envió el admin:");
             if (!offer) return;
-            
+
             peerConnection = new RTCPeerConnection(config);
             
             peerConnection.ondatachannel = (event) => {
@@ -94,43 +136,58 @@
                 dataChannel.onmessage = (event) => {
                     addMessage("Admin", event.data);
                 };
+                
+                dataChannel.onopen = () => {
+                    addSystemMessage("Conectado al admin. Puedes enviar mensajes.");
+                };
             };
 
-            await peerConnection.setRemoteDescription(JSON.parse(decodeURIComponent(offer)));
-            const answer = await peerConnection.createAnswer();
-            await peerConnection.setLocalDescription(answer);
-            
-            document.getElementById("guest-ui").style.display = "none";
-            document.getElementById("chat-ui").style.display = "block";
-            document.getElementById("current-room").textContent = roomCode;
+            try {
+                await peerConnection.setRemoteDescription(JSON.parse(offer));
+                const answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+                
+                // Mostrar la respuesta para que el invitado la comparta con el admin
+                prompt("Envía esta respuesta al admin:", JSON.stringify(answer));
+            } catch (error) {
+                alert("Error al conectar: " + error.message);
+            }
         }
 
-        // 4. Auto-detectar invitado
+        // 4. Enviar mensajes
+        function sendMessage() {
+            const message = document.getElementById("message-input").value;
+            if (message && dataChannel && dataChannel.readyState === "open") {
+                dataChannel.send(message);
+                addMessage(isAdmin ? "Tú (Admin)" : "Tú", message);
+                document.getElementById("message-input").value = "";
+            } else {
+                alert("Esperando conexión... Intenta de nuevo en unos segundos.");
+            }
+        }
+
+        // Helpers
+        function addMessage(sender, text) {
+            const messagesDiv = document.getElementById("messages");
+            const messageClass = sender.includes("Admin") ? "admin-message" : "message";
+            messagesDiv.innerHTML += `<div class="${messageClass}"><strong>${sender}:</strong> ${text}</div>`;
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function addSystemMessage(text) {
+            addMessage("Sistema", text);
+        }
+
+        // Auto-detectar invitado al cargar
         window.onload = () => {
             const urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.has('offer')) {
+            if (urlParams.has('code')) {
                 roomCode = urlParams.get('code');
                 document.getElementById("guest-room-code").textContent = roomCode;
                 document.getElementById("login").style.display = "none";
                 document.getElementById("guest-ui").style.display = "block";
             }
         };
-
-        // Helpers
-        function addMessage(sender, text) {
-            const messagesDiv = document.getElementById("messages");
-            messagesDiv.innerHTML += `<div><strong>${sender}:</strong> ${text}</div>`;
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
-        }
-
-        function sendMessage() {
-            const message = document.getElementById("message-input").value;
-            if (message && dataChannel) {
-                dataChannel.send(message);
-                addMessage(isAdmin ? "Tú (Admin)" : "Tú", message);
-                document.getElementById("message-input").value = "";
-            }
-        }
     </script>
 </body>
-    </html>
+</html>
